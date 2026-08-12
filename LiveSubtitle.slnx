@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/LiveSubtitle.Core/LiveSubtitle.Core.csproj" />
+  <Project Path="src/LiveSubtitle.App/LiveSubtitle.App.csproj" />
+  <Project Path="tests/LiveSubtitle.Tests/LiveSubtitle.Tests.csproj" />
+</Solution>

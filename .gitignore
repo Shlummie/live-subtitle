@@ -1,0 +1,14 @@
+bin/
+obj/
+artifacts/
+.packages/
+.vs/
+*.user
+*.suo
+*.nupkg
+*.snupkg
+.impeccable/mocks/
+installer/Output/
+models/
+*.partial
+TestResults/

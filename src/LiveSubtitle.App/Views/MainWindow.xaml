@@ -1,0 +1,556 @@
+<Window x:Class="LiveSubtitle.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:LiveSubtitle.App.Controls"
+        mc:Ignorable="d"
+        Title="LiveSubtitle" Width="1260" Height="800" MinWidth="1060" MinHeight="680"
+        WindowStartupLocation="CenterScreen" Icon="/Assets/LiveSubtitle.ico"
+        AutomationProperties.Name="LiveSubtitle control center">
+    <!--
+      DESIGN CONTRACT
+      THESIS: A calm, trustworthy Windows caption utility where listening state and the next action are unmistakable.
+      OWN-WORLD: Charcoal native surfaces, precise blue controls, quiet borders, compact configuration rows, and readable captions.
+      STORY: See listening state -> verify sources -> read captions -> tune overlay/recognition -> optionally save.
+      FIRST VIEWPORT: Status, start/stop, profile, session privacy, live transcript, source meters.
+      FORM: PowerToys density with Windows Settings navigation and native keyboard behavior.
+      FINISH: Feels installed, private, and dependable before it feels novel.
+    -->
+    <Grid x:Name="MainRoot" Background="{DynamicResource WindowBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="248"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="{DynamicResource SidebarBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+            <Grid Margin="14,16,14,14">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid Margin="8,2,8,22">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="38"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Width="32" Height="32" CornerRadius="8" Background="{DynamicResource AccentBrush}">
+                        <Viewbox Margin="7"><Path Fill="White" Data="M2,3 H14 V11 H9 L6,14 V11 H2 Z M5,6 H11 M5,8.5 H9" Stroke="White" StrokeThickness="1.2" Stretch="Uniform"/></Viewbox>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="LiveSubtitle" FontFamily="{DynamicResource DisplayFont}" FontSize="17" FontWeight="SemiBold"/>
+                        <TextBlock Text="Local live captions" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
+                    </StackPanel>
+                </Grid>
+
+                <ListBox Grid.Row="1" ItemsSource="{Binding Navigation}" SelectedIndex="{Binding SelectedNavigationIndex}" AutomationProperties.Name="Settings pages">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                            <Setter Property="Padding" Value="11,9"/>
+                            <Setter Property="Margin" Value="0,1"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Label}"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="NavBorder" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="NavBorder" Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/></Trigger>
+                                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="NavBorder" Property="Background" Value="{DynamicResource AccentSubtleBrush}"/><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="NavBorder" Property="BorderBrush" Value="{DynamicResource FocusBrush}"/><Setter TargetName="NavBorder" Property="BorderThickness" Value="1"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Viewbox Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <Path Data="{Binding IconData}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="Uniform"/>
+                                </Viewbox>
+                                <TextBlock Grid.Column="1" Text="{Binding Label}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" VerticalAlignment="Center" FontSize="13"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="10" Padding="12" Margin="0,14,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Grid Width="26" Height="26" VerticalAlignment="Center">
+                            <Ellipse Fill="{DynamicResource SuccessBrush}" Width="8" Height="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse"><Setter Property="Opacity" Value="0.28"/><Style.Triggers><DataTrigger Binding="{Binding IsListening}" Value="True"><Setter Property="Opacity" Value="1"/></DataTrigger></Style.Triggers></Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                        </Grid>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="{Binding IsListening, Converter={StaticResource ListeningState}}" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="English · private" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Column="1" SelectedIndex="{Binding SelectedNavigationIndex}" Background="Transparent" BorderThickness="0" Padding="0"
+                    Focusable="False" IsTabStop="False">
+            <TabControl.Resources>
+                <Style TargetType="TabItem"><Setter Property="Focusable" Value="False"/><Setter Property="IsTabStop" Value="False"/></Style>
+            </TabControl.Resources>
+            <TabControl.Template>
+                <ControlTemplate TargetType="TabControl">
+                    <Grid KeyboardNavigation.TabNavigation="Local">
+                        <Grid.RowDefinitions><RowDefinition Height="0"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                        <TabPanel x:Name="HeaderPanel" Grid.Row="0" IsItemsHost="True" Opacity="0" IsHitTestVisible="False"/>
+                        <ContentPresenter x:Name="PART_SelectedContentHost" Grid.Row="1" ContentSource="SelectedContent"/>
+                    </Grid>
+                </ControlTemplate>
+            </TabControl.Template>
+
+            <!-- LIVE -->
+            <TabItem Header="Live" AutomationProperties.Name="Live page">
+                <Grid Margin="34,28,34,28">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Live captions" Style="{StaticResource PageTitle}"/>
+                            <TextBlock Text="{Binding StatusText}" FontSize="14" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                            <TextBlock Text="{Binding StatusDetail}" Style="{StaticResource BodySecondary}" MaxWidth="700" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="{Binding ListeningButtonText}" Command="{Binding ToggleListeningCommand}" Style="{StaticResource PrimaryButton}" MinWidth="148" Height="42" AutomationProperties.Name="Start or stop listening"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" Style="{StaticResource SurfaceBorder}" Margin="0,22,0,18" Padding="16,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="12"/><ColumnDefinition Width="220"/><ColumnDefinition Width="26"/>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="10"/><ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Ellipse Width="9" Height="9" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center" Opacity="0.28">
+                                <Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Opacity" Value="0.28"/><Style.Triggers><DataTrigger Binding="{Binding IsListening}" Value="True"><Setter Property="Opacity" Value="1"/></DataTrigger></Style.Triggers></Style></Ellipse.Style>
+                            </Ellipse>
+                            <ComboBox Grid.Column="2" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" AutomationProperties.Name="Active profile" ItemContainerStyle="{StaticResource NameComboBoxItem}">
+                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <controls:SettingInfoButton Grid.Column="3" SettingName="Active profile"
+                                                        Description="Switches audio sources, subtitle appearance, recognition, and hotkeys to the selected profile."/>
+                            <StackPanel Grid.Column="4" Orientation="Horizontal">
+                                <CheckBox Content="Save this session" IsChecked="{Binding SaveThisSession}"/>
+                                <controls:SettingInfoButton SettingName="Save this session"
+                                                            Description="Keeps final caption text in Saved sessions when listening stops. Audio is never saved."
+                                                            Margin="6,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="6" Orientation="Horizontal">
+                                <Button Content="{Binding OverlayLockText}" Command="{Binding ToggleOverlayLockCommand}" Padding="12,6" MinHeight="34"/>
+                            </StackPanel>
+                            <Button Grid.Column="8" Content="Show / hide overlay" Command="{Binding ToggleOverlayCommand}" Padding="12,6" MinHeight="34"/>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="2.1*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource SurfaceBorder}" Padding="0">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                <Grid Margin="18,16,18,12">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Transcript" Style="{StaticResource SectionTitle}"/>
+                                        <TextBlock Text="Draft words are subdued until they settle." Style="{StaticResource BodySecondary}"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Save now" Command="{Binding SaveSessionCommand}" Padding="11,5" MinHeight="32" VerticalAlignment="Center"/>
+                                </Grid>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="18,0,10,18" Focusable="False">
+                                    <StackPanel>
+                                        <Border Background="{DynamicResource SurfaceRaisedBrush}" CornerRadius="9" Padding="16" Margin="0,2,8,12">
+                                            <TextBlock Text="Start listening and play any audio. Live captions will appear here and in the overlay; unsaved text is erased when you stop." Style="{StaticResource BodySecondary}"/>
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding Captions}" Focusable="False" AutomationProperties.Name="Live transcript">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="2,8,10,12">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="74"/><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+                                                            <Ellipse Width="7" Height="7" Fill="{Binding SourceColorHex, Converter={StaticResource HexBrush}}" Margin="0,5,7,0"/>
+                                                            <TextBlock Text="{Binding SourceLabel}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" MaxWidth="56" TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" FontSize="18" LineHeight="26">
+                                                            <Run Text="{Binding StableText, Mode=OneWay}"/><Run Text=" "/><Run Text="{Binding ProvisionalText, Mode=OneWay}" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Grid.Column="2" Text="{Binding TimeLabel}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" HorizontalAlignment="Right" Margin="0,5,0,0"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource SurfaceBorder}" Padding="18,16">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Sources" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Text="Live input levels and recovery state." Style="{StaticResource BodySecondary}"/>
+                                </StackPanel>
+                                <ScrollViewer Grid.Row="1" Margin="0,14,0,0" VerticalScrollBarVisibility="Auto" Focusable="False">
+                                    <ItemsControl ItemsSource="{Binding AudioSources}" Focusable="False" AutomationProperties.Name="Source status">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="0,0,0,18">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="13"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding State}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                                    </Grid>
+                                                    <ProgressBar Value="{Binding LevelPercent, Mode=OneWay}" Maximum="100" Margin="0,8,0,5"/>
+                                                    <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource WarningBrush}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- AUDIO SOURCES -->
+            <TabItem Header="Audio sources" AutomationProperties.Name="Audio sources page">
+                <Grid Margin="34,28,34,28">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Text="Audio sources" Style="{StaticResource PageTitle}"/>
+                            <TextBlock Text="Listen to outputs, microphones, individual app process trees, or several labeled sources at once." Style="{StaticResource BodySecondary}" Margin="0,6,0,0"/>
+                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                            <Button Content="Computer audio" Command="{Binding AddOutputSourceCommand}" Margin="0,0,8,0"/>
+                            <Button Content="Microphone" Command="{Binding AddInputSourceCommand}" Margin="0,0,8,0"/>
+                            <Button Content="Application" Command="{Binding AddProcessSourceCommand}" Style="{StaticResource PrimaryButton}"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Grid.Row="1" Background="#2C2414" BorderBrush="#665126" BorderThickness="1" CornerRadius="9" Padding="12" Margin="0,18,0,12" Visibility="{Binding HasDuplicateRouteWarning, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding DuplicateRouteWarning}" Foreground="#FFD98A"/>
+                    </Border>
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="0,6,10,4" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding AudioSources}" Focusable="False" AutomationProperties.Name="Configured audio sources">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource SurfaceBorder}" Margin="0,0,0,12">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="170"/><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/><ColumnDefinition Width="130"/><ColumnDefinition Width="72"/></Grid.ColumnDefinitions>
+                                            <Grid Width="20" Height="20" VerticalAlignment="Center">
+                                                <Ellipse Fill="{Binding ColorHex, Converter={StaticResource HexBrush}}"/>
+                                                <Ellipse Fill="{DynamicResource WindowBrush}" Margin="6"/>
+                                            </Grid>
+                                            <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                                <controls:SettingHelpLabel Text="Label" Description="The name shown beside this source in captions and the overlay."/>
+                                                <TextBox Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Source label"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                                                <controls:SettingHelpLabel Text="Type" Description="Chooses computer output, an input such as a microphone, or one application process tree."/>
+                                                <ComboBox ItemsSource="{Binding DataContext.SourceKinds, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Kind}" AutomationProperties.Name="Source type"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" Margin="0,0,14,0">
+                                                <controls:SettingHelpLabel Text="Route" Description="Selects the device or application LiveSubtitle listens to for this source."/>
+                                                <ComboBox ItemsSource="{Binding DataContext.Endpoints, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding SelectedEndpoint}" Visibility="{Binding IsProcess, Converter={StaticResource InverseBoolToVisibility}}" ItemContainerStyle="{StaticResource NameComboBoxItem}" AutomationProperties.Name="Audio route">
+                                                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <ComboBox ItemsSource="{Binding DataContext.Processes, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding SelectedProcess}" Visibility="{Binding IsProcess, Converter={StaticResource BoolToVisibility}}" ItemContainerStyle="{StaticResource DisplayNameComboBoxItem}" AutomationProperties.Name="Application route">
+                                                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}"/></DataTemplate></ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="4" Margin="0,0,14,0">
+                                                <controls:SettingHelpLabel Text="Gain" Description="Boosts or reduces this source before speech detection without changing Windows volume."/>
+                                                <Slider Minimum="0" Maximum="4" Value="{Binding Gain}" TickFrequency="0.1" AutomationProperties.Name="Source gain"/>
+                                                <ProgressBar Value="{Binding LevelPercent, Mode=OneWay}" Maximum="100" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="5" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <CheckBox Content="On" IsChecked="{Binding Enabled}"/>
+                                                    <controls:SettingInfoButton SettingName="Source enabled"
+                                                                                Description="Includes this source the next time listening starts. Turn it off to keep the source without capturing it."
+                                                                                Margin="4,0,0,0"/>
+                                                </StackPanel>
+                                                <Button Content="Remove" Command="{Binding DataContext.RemoveSourceCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="7,4" MinHeight="30" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <Grid Grid.Row="3" Margin="0,6,16,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding SourceTestStatus}" Style="{StaticResource BodySecondary}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="16,0,20,0"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="Test sources for 5 seconds" Command="{Binding TestSourcesCommand}" Margin="0,0,8,0"/>
+                            <Button Content="Refresh devices and apps" Command="{Binding RefreshAudioCommand}"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- APPEARANCE -->
+            <TabItem Header="Subtitle appearance" AutomationProperties.Name="Subtitle appearance page">
+                <Grid Margin="34,28,34,28">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Subtitle appearance" Style="{StaticResource PageTitle}"/>
+                        <TextBlock Text="Tune the always-on-top overlay, then unlock it to drag or resize on any monitor." Style="{StaticResource BodySecondary}" Margin="0,6,0,0"/>
+                    </StackPanel>
+                    <Grid Grid.Row="1" Margin="0,22,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="390"/><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,10,4" Focusable="False">
+                            <StackPanel>
+                                <TextBlock Text="Typography" Style="{StaticResource SectionTitle}" Margin="0,0,0,12"/>
+                                <controls:SettingHelpLabel Text="Font family" Description="Sets the typeface used in the desktop subtitle overlay. Enter the name of an installed Windows font."/>
+                                <TextBox Text="{Binding OverlayFontFamily, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Overlay font family"/>
+                                <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <StackPanel><controls:SettingHelpLabel Text="Font size" Description="Changes the size of subtitle text in the overlay."/><Slider Minimum="12" Maximum="96" Value="{Binding OverlayFontSize}" AutomationProperties.Name="Overlay font size"/><TextBlock Text="{Binding OverlayFontSize, StringFormat={}{0:0} pt}" Style="{StaticResource BodySecondary}"/></StackPanel>
+                                    <StackPanel Grid.Column="2"><controls:SettingHelpLabel Text="Font weight" Description="Changes how thin or bold subtitle text appears."/><Slider Minimum="100" Maximum="900" TickFrequency="100" IsSnapToTickEnabled="True" Value="{Binding OverlayFontWeight}" AutomationProperties.Name="Overlay font weight"/><TextBlock Text="{Binding OverlayFontWeight}" Style="{StaticResource BodySecondary}"/></StackPanel>
+                                </Grid>
+                                <Border Style="{StaticResource Divider}"/>
+                                <TextBlock Text="Layout" Style="{StaticResource SectionTitle}"/>
+                                <controls:SettingHelpLabel Text="Monitor" Description="Chooses the display where the overlay opens and where snap positions are applied." Margin="0,10,0,0"/>
+                                <ComboBox ItemsSource="{Binding OverlayMonitors}" DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue="{Binding OverlayMonitorId}" AutomationProperties.Name="Overlay monitor" ItemContainerStyle="{StaticResource NameComboBoxItem}"/>
+                                <controls:SettingHelpLabel Text="Snap position" Description="Places the overlay at a common position on the selected monitor." Margin="0,12,0,0"/>
+                                <ComboBox ItemsSource="{Binding OverlayAnchorOptions}" DisplayMemberPath="Name" SelectedValuePath="Value" SelectedValue="{Binding OverlayAnchorMode}" AutomationProperties.Name="Overlay snap position" ItemContainerStyle="{StaticResource NameComboBoxItem}"/>
+                                <controls:SettingHelpLabel Text="Width" Description="Sets the overlay width. Narrower widths wrap captions onto new lines sooner." Margin="0,10,0,0"/><Slider Minimum="320" Maximum="1800" Value="{Binding OverlayWidth}" AutomationProperties.Name="Overlay width"/><TextBlock Text="{Binding OverlayWidth, StringFormat={}{0:0} px}" Style="{StaticResource BodySecondary}"/>
+                                <controls:SettingHelpLabel Text="Caption lines" Description="Limits how many caption lines remain visible in the overlay at once." Margin="0,12,0,0"/><Slider Minimum="1" Maximum="8" IsSnapToTickEnabled="True" TickFrequency="1" Value="{Binding OverlayMaxLines}" AutomationProperties.Name="Maximum caption lines"/><TextBlock Text="{Binding OverlayMaxLines}" Style="{StaticResource BodySecondary}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <CheckBox Content="Show source labels" IsChecked="{Binding ShowSourceLabels}"/>
+                                    <controls:SettingInfoButton SettingName="Show source labels" Description="Shows each source name and color above its captions." Margin="6,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox Content="Click through when locked" IsChecked="{Binding ClickThroughWhenLocked}"/>
+                                    <controls:SettingInfoButton SettingName="Click through when locked" Description="Lets mouse clicks pass through the locked overlay to the application underneath." Margin="6,0,0,0"/>
+                                </StackPanel>
+                                <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <Button Content="{Binding OverlayLockText}" Command="{Binding ToggleOverlayLockCommand}"/>
+                                    <Button Grid.Column="2" Content="Show / hide" Command="{Binding ToggleOverlayCommand}"/>
+                                </Grid>
+                                <Border Style="{StaticResource Divider}"/>
+                                <TextBlock Text="Color and depth" Style="{StaticResource SectionTitle}"/>
+                                <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <StackPanel><controls:SettingHelpLabel Text="Text" Description="Sets the color of stable and final caption words."/><TextBox Text="{Binding OverlayTextColor, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Final text color"/></StackPanel>
+                                    <StackPanel Grid.Column="2"><controls:SettingHelpLabel Text="Draft text" Description="Sets the color of provisional words that may still change."/><TextBox Text="{Binding OverlayDraftColor, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Draft text color"/></StackPanel>
+                                </Grid>
+                                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <StackPanel><controls:SettingHelpLabel Text="Background" Description="Sets the color behind the caption text."/><TextBox Text="{Binding OverlayBackgroundColor, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Background color"/></StackPanel>
+                                    <StackPanel Grid.Column="2"><controls:SettingHelpLabel Text="Outline" Description="Sets the border color around the subtitle background."/><TextBox Text="{Binding OverlayOutlineColor, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Outline color"/></StackPanel>
+                                </Grid>
+                                <controls:SettingHelpLabel Text="Background opacity" Description="Controls the subtitle background transparency: zero is clear and 100 percent is solid." Margin="0,12,0,0"/><Slider Minimum="0" Maximum="1" Value="{Binding OverlayOpacity}" AutomationProperties.Name="Background opacity"/><TextBlock Text="{Binding OverlayOpacity, StringFormat={}{0:P0}}" Style="{StaticResource BodySecondary}"/>
+                                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <StackPanel><controls:SettingHelpLabel Text="Outline thickness" Description="Changes the thickness of the border around the subtitle background."/><Slider Minimum="0" Maximum="8" Value="{Binding OverlayOutlineThickness}" AutomationProperties.Name="Overlay outline thickness"/><TextBlock Text="{Binding OverlayOutlineThickness, StringFormat={}{0:0.0} px}" Style="{StaticResource BodySecondary}"/></StackPanel>
+                                    <StackPanel Grid.Column="2"><controls:SettingHelpLabel Text="Corner radius" Description="Rounds the corners of the subtitle background."/><Slider Minimum="0" Maximum="40" Value="{Binding OverlayCornerRadius}" AutomationProperties.Name="Overlay corner radius"/><TextBlock Text="{Binding OverlayCornerRadius, StringFormat={}{0:0} px}" Style="{StaticResource BodySecondary}"/></StackPanel>
+                                </Grid>
+                                <controls:SettingHelpLabel Text="Shadow opacity" Description="Controls how visible the shadow behind the subtitle background is." Margin="0,12,0,0"/><Slider Minimum="0" Maximum="1" Value="{Binding OverlayShadowOpacity}" AutomationProperties.Name="Overlay shadow opacity"/><TextBlock Text="{Binding OverlayShadowOpacity, StringFormat={}{0:P0}}" Style="{StaticResource BodySecondary}"/>
+                                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <StackPanel><controls:SettingHelpLabel Text="Shadow blur" Description="Softens or sharpens the edge of the overlay shadow."/><Slider Minimum="0" Maximum="80" Value="{Binding OverlayShadowBlurRadius}" AutomationProperties.Name="Overlay shadow blur"/><TextBlock Text="{Binding OverlayShadowBlurRadius, StringFormat={}{0:0} px}" Style="{StaticResource BodySecondary}"/></StackPanel>
+                                    <StackPanel Grid.Column="2"><controls:SettingHelpLabel Text="Shadow depth" Description="Moves the shadow farther from or closer to the subtitle background."/><Slider Minimum="0" Maximum="30" Value="{Binding OverlayShadowDepth}" AutomationProperties.Name="Overlay shadow depth"/><TextBlock Text="{Binding OverlayShadowDepth, StringFormat={}{0:0} px}" Style="{StaticResource BodySecondary}"/></StackPanel>
+                                </Grid>
+                                <controls:SettingHelpLabel Text="Screen capture" Description="Include shows the overlay in recordings. Exclude asks Windows to hide it from supported capture tools, though some capture methods may ignore this." Margin="0,12,0,0"/><ComboBox ItemsSource="{Binding CaptureModes}" SelectedItem="{Binding OverlayCaptureMode}" AutomationProperties.Name="Screen capture visibility"/>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <Border Grid.Column="2" Style="{StaticResource SurfaceBorder}" Padding="26">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Overlay preview" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Text="Actual size updates live in the desktop overlay." Style="{StaticResource BodySecondary}"/>
+                                </StackPanel>
+                                <Border Grid.Row="1" Background="#202733" CornerRadius="10" Margin="0,22" ClipToBounds="True">
+                                    <Grid>
+                                        <Path Data="M0,80 C150,20 280,150 430,70 S720,90 900,30" Stroke="#2C3746" StrokeThickness="2" Stretch="Fill" Margin="30"/>
+                                        <Border MaxWidth="{Binding OverlayWidth}" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="24" Padding="18,13"
+                                                Background="{Binding OverlayBackgroundColor, Converter={StaticResource HexBrush}}"
+                                                BorderBrush="{Binding OverlayOutlineColor, Converter={StaticResource HexBrush}}"
+                                                BorderThickness="{Binding OverlayOutlineThickness}" CornerRadius="{Binding OverlayCornerRadius}" Opacity="{Binding OverlayOpacity}">
+                                            <Border.Effect><DropShadowEffect Color="#000000" BlurRadius="{Binding OverlayShadowBlurRadius}" Opacity="{Binding OverlayShadowOpacity}" ShadowDepth="{Binding OverlayShadowDepth}"/></Border.Effect>
+                                            <StackPanel>
+                                                <TextBlock Text="VIDEO" Foreground="#69A7FF" FontSize="10" FontWeight="Bold" Visibility="{Binding ShowSourceLabels, Converter={StaticResource BoolToVisibility}}"/>
+                                                <TextBlock FontFamily="{Binding OverlayFontFamily}" FontSize="{Binding OverlayFontSize}" FontWeight="{Binding OverlayFontWeight, Converter={StaticResource FontWeight}}" TextWrapping="Wrap" MaxWidth="680">
+                                                    <Run Text="Captions settle as the audio plays" Foreground="{Binding OverlayTextColor, Converter={StaticResource HexBrush}}"/><Run Text=" instantly." Foreground="{Binding OverlayDraftColor, Converter={StaticResource HexBrush}}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Grid.Row="2" Text="Safe for desktop, windowed, and borderless fullscreen. True exclusive fullscreen is intentionally not injected into." Style="{StaticResource BodySecondary}"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- RECOGNITION -->
+            <TabItem Header="Recognition" AutomationProperties.Name="Recognition page">
+                <Grid Margin="34,28,34,28">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Recognition" Style="{StaticResource PageTitle}"/>
+                        <TextBlock Text="English-only Whisper runs locally. Models are separate, pinned downloads with SHA-256 verification." Style="{StaticResource BodySecondary}" Margin="0,6,0,0"/>
+                    </StackPanel>
+                    <Grid Grid.Row="1" Margin="0,22,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="1.35*"/><ColumnDefinition Width="20"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource SurfaceBorder}" Padding="0">
+                            <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <StackPanel Margin="18,16,18,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Model" Style="{StaticResource SectionTitle}"/>
+                                        <controls:SettingInfoButton SettingName="Speech model" Description="Larger models can improve accuracy but use more memory and usually run slower. Models are downloaded separately." Margin="7,-2,0,4"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Choose one model to load in the isolated engine." Style="{StaticResource BodySecondary}"/>
+                                </StackPanel>
+                                <ListBox Grid.Row="1" ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}" Margin="10,4" AutomationProperties.Name="Speech models">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,3"/><Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="B" CornerRadius="9" Padding="12" Background="Transparent"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource AccentSubtleBrush}"/><Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/><Setter TargetName="B" Property="BorderThickness" Value="1"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate><DataTemplate><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions><StackPanel><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="14"/><TextBlock Text="  Recommended" Foreground="{DynamicResource AccentHoverBrush}" FontSize="11" VerticalAlignment="Center" Visibility="{Binding Recommended, Converter={StaticResource BoolToVisibility}}"/></StackPanel><TextBlock Text="{Binding Description}" Style="{StaticResource BodySecondary}" Margin="0,3,12,0"/><ProgressBar Value="{Binding Progress}" Maximum="100" Margin="0,8,12,0" Visibility="{Binding Downloading, Converter={StaticResource BoolToVisibility}}"/></StackPanel><StackPanel Grid.Column="1" HorizontalAlignment="Right"><TextBlock Text="{Binding SizeLabel}" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right"/><TextBlock Text="{Binding State}" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" TextAlignment="Right" Margin="0,4,0,0"/></StackPanel></Grid></DataTemplate></ListBox.ItemTemplate>
+                                </ListBox>
+                                <Grid Grid.Row="2" Margin="18,10,18,18"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Downloads resume after interruption." Style="{StaticResource BodySecondary}" VerticalAlignment="Center"/><Button Grid.Column="1" Content="Verify" Command="{Binding VerifyModelsCommand}"/><Button Grid.Column="3" Content="Download selected" Command="{Binding DownloadModelCommand}" Style="{StaticResource PrimaryButton}"/></Grid>
+                            </Grid>
+                        </Border>
+                        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="0,0,8,0" Focusable="False">
+                            <StackPanel>
+                                <Border Style="{StaticResource SurfaceBorder}"><StackPanel>
+                                    <TextBlock Text="Performance" Style="{StaticResource SectionTitle}"/>
+                                    <controls:SettingHelpLabel Text="Preset" Description="Applies a matched set of timing values for faster drafts, balanced behavior, or steadier captions." Margin="0,10,0,0"/><ComboBox ItemsSource="{Binding RecognitionPresets}" SelectedItem="{Binding SelectedRecognitionPreset}" AutomationProperties.Name="Recognition timing preset"/>
+                                    <controls:SettingHelpLabel Text="Backend" Description="Chooses the processor used for speech recognition. Auto tries the Vulkan GPU first, then the AVX2 CPU." Margin="0,10,0,0"/><ComboBox ItemsSource="{Binding Backends}" SelectedItem="{Binding Backend}" AutomationProperties.Name="Recognition backend"/>
+                                    <TextBlock Text="Auto tries Vulkan first and AVX2 CPU second. It does not require the CUDA Toolkit." Style="{StaticResource BodySecondary}" Margin="0,7,0,0"/>
+                                    <Border Style="{StaticResource Divider}"/>
+                                    <controls:SettingHelpLabel Text="Draft interval" Description="Controls how often provisional text refreshes. Lower values feel faster but use more processing power."/><Slider Minimum="150" Maximum="1500" Value="{Binding DraftIntervalMs}" AutomationProperties.Name="Draft interval"/><TextBlock Text="{Binding DraftIntervalMs, StringFormat={}{0} ms}" Style="{StaticResource BodySecondary}"/>
+                                    <controls:SettingHelpLabel Text="Finalize after silence" Description="Sets how long silence must last before a caption becomes final. Lower values respond sooner but may split sentences." Margin="0,12,0,0"/><Slider Minimum="250" Maximum="2500" Value="{Binding FinalizeSilenceMs}" AutomationProperties.Name="Finalize after silence"/><TextBlock Text="{Binding FinalizeSilenceMs, StringFormat={}{0} ms}" Style="{StaticResource BodySecondary}"/>
+                                    <controls:SettingHelpLabel Text="Rolling overlap" Description="Reuses the end of the previous audio window to avoid missing words at a boundary. More overlap costs more processing." Margin="0,12,0,0"/><Slider Minimum="0" Maximum="2500" Value="{Binding WindowOverlapMs}" AutomationProperties.Name="Rolling overlap"/><TextBlock Text="{Binding WindowOverlapMs, StringFormat={}{0} ms}" Style="{StaticResource BodySecondary}"/>
+                                    <controls:SettingHelpLabel Text="Maximum utterance" Description="Forces very long continuous speech into a new caption after this many seconds." Margin="0,12,0,0"/><Slider Minimum="3" Maximum="30" Value="{Binding MaxUtteranceSeconds}" AutomationProperties.Name="Maximum utterance duration"/><TextBlock Text="{Binding MaxUtteranceSeconds, StringFormat={}{0} seconds}" Style="{StaticResource BodySecondary}"/>
+                                    <controls:SettingHelpLabel Text="Audio sensitivity" Description="Higher values detect quieter audio. Lower values ignore more background noise." Margin="0,12,0,0"/>
+                                    <Slider Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding AudioSensitivity, Mode=TwoWay}" AutomationProperties.Name="Audio sensitivity" AutomationProperties.HelpText="Higher values detect quieter audio; lower values ignore more background noise."/>
+                                    <TextBlock Text="{Binding AudioSensitivity, StringFormat={}{0:0}%}" Style="{StaticResource BodySecondary}"/>
+                                    <TextBlock Text="Higher hears quieter dialogue; lower ignores more background noise. Applies the next time listening starts." Style="{StaticResource BodySecondary}" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                    <controls:SettingHelpLabel Text="Silero VAD threshold" Description="Sets how confident voice detection must be before audio counts as speech. Higher values reject more noise but may miss quiet speech." Margin="0,12,0,0"/><Slider Minimum="0.05" Maximum="0.95" Value="{Binding VadThreshold}" AutomationProperties.Name="Voice activity threshold"/><TextBlock Text="{Binding VadThreshold, StringFormat={}{0:0.00}}" Style="{StaticResource BodySecondary}"/>
+                                    <Button Content="Save recognition settings" Command="{Binding SaveSettingsCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Margin="0,14,0,0"/>
+                                </StackPanel></Border>
+                                <Border Style="{StaticResource SurfaceBorder}" Margin="0,12,0,0"><StackPanel>
+                                    <TextBlock Text="Vocabulary and benchmark" Style="{StaticResource SectionTitle}"/>
+                                    <controls:SettingHelpLabel Text="Names or jargon to bias recognition (comma-separated)" Description="Adds words Whisper should favor, such as names or game terms. This guides recognition but does not train the model." Margin="0,10,0,0"/>
+                                    <TextBox Text="{Binding CustomVocabulary, UpdateSourceTrigger=PropertyChanged}" MinHeight="64" AcceptsReturn="True" TextWrapping="Wrap" AutomationProperties.Name="Custom vocabulary"/>
+                                    <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding BenchmarkResult}" Style="{StaticResource BodySecondary}" VerticalAlignment="Center"/><Button Grid.Column="1" Content="Run backend check" Command="{Binding RunBenchmarkCommand}"/></Grid>
+                                </StackPanel></Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- HOTKEYS -->
+            <TabItem Header="Hotkeys" AutomationProperties.Name="Hotkeys page">
+                <Grid Margin="34,28,34,28">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <StackPanel><TextBlock Text="Hotkeys" Style="{StaticResource PageTitle}"/><TextBlock Text="Global shortcuts work while LiveSubtitle is in the tray. Conflicts are checked before registration." Style="{StaticResource BodySecondary}" Margin="0,6,0,0"/></StackPanel>
+                    <Border Grid.Row="1" Style="{StaticResource SurfaceBorder}" Margin="0,22,0,0" HorizontalAlignment="Left" Width="650" VerticalAlignment="Top">
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="250"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Action" Style="{StaticResource LabelText}"/>
+                                <StackPanel Orientation="Horizontal" Height="44"><TextBlock Text="Start or stop listening" VerticalAlignment="Center"/><controls:SettingInfoButton SettingName="Listening shortcut" Description="Sets the global shortcut that starts or stops audio capture and captions." Margin="7,0,0,0"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Height="44"><TextBlock Text="Show or hide overlay" VerticalAlignment="Center"/><controls:SettingInfoButton SettingName="Overlay visibility shortcut" Description="Sets the global shortcut that shows or hides the subtitle overlay without stopping listening." Margin="7,0,0,0"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Height="44"><TextBlock Text="Lock or edit overlay" VerticalAlignment="Center"/><controls:SettingInfoButton SettingName="Overlay lock shortcut" Description="Sets the global shortcut that switches between a movable overlay and its locked state." Margin="7,0,0,0"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Height="44"><TextBlock Text="Switch to next profile" VerticalAlignment="Center"/><controls:SettingInfoButton SettingName="Next profile shortcut" Description="Sets the global shortcut that switches to the next named profile." Margin="7,0,0,0"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Height="44"><TextBlock Text="Save current session" VerticalAlignment="Center"/><controls:SettingInfoButton SettingName="Save session shortcut" Description="Sets the global shortcut that saves the current session's final caption text. Audio is never saved." Margin="7,0,0,0"/></StackPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="Shortcut" Style="{StaticResource LabelText}"/><TextBox Text="{Binding HotkeyListening}" Margin="0,4" AutomationProperties.Name="Listening shortcut"/><TextBox Text="{Binding HotkeyOverlay}" Margin="0,4" AutomationProperties.Name="Overlay visibility shortcut"/><TextBox Text="{Binding HotkeyLock}" Margin="0,4" AutomationProperties.Name="Overlay lock shortcut"/><TextBox Text="{Binding HotkeyNextProfile}" Margin="0,4" AutomationProperties.Name="Next profile shortcut"/><TextBox Text="{Binding HotkeySave}" Margin="0,4" AutomationProperties.Name="Save session shortcut"/><TextBlock Text="Use combinations such as Ctrl+Alt+Space. Reserved, duplicate, or already registered shortcuts are rejected before settings are saved." Style="{StaticResource BodySecondary}" Margin="0,10,0,0"/><Button Content="Apply shortcuts" Command="{Binding SaveSettingsCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Margin="0,14,0,0"/></StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- SAVED -->
+            <TabItem Header="Saved sessions" AutomationProperties.Name="Saved sessions page">
+                <Grid Margin="34,28,34,28">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <StackPanel><TextBlock Text="Saved sessions" Style="{StaticResource PageTitle}"/><TextBlock Text="Only sessions you explicitly save appear here. Search, copy, or export TXT, SRT, and WebVTT." Style="{StaticResource BodySecondary}" Margin="0,6,0,0"/></StackPanel>
+                    <Grid Grid.Row="1" Margin="0,20,0,14"><Grid.ColumnDefinitions><ColumnDefinition Width="360"/><ColumnDefinition Width="10"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox Text="{Binding HistoryQuery, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search saved sessions"/><Button Grid.Column="2" Content="Search" Command="{Binding SearchHistoryCommand}"/></Grid>
+                    <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="1.5*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource SurfaceBorder}" Padding="8"><ListBox ItemsSource="{Binding SavedSessions}" SelectedItem="{Binding SelectedSavedSession}" AutomationProperties.Name="Saved sessions list"><ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="12"/><Setter Property="Margin" Value="0,2"/><Setter Property="AutomationProperties.Name" Value="{Binding Name}"/><Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/></Trigger></Style.Triggers></Style></ListBox.ItemContainerStyle><ListBox.ItemTemplate><DataTemplate><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Text="Saved caption text only" Style="{StaticResource BodySecondary}"/></StackPanel><TextBlock Grid.Column="1" Text="{Binding StartedAtUtc, StringFormat={}{0:MMM d}}" Foreground="{DynamicResource TextMutedBrush}"/></Grid></DataTemplate></ListBox.ItemTemplate></ListBox></Border>
+                        <Border Grid.Column="2" Style="{StaticResource SurfaceBorder}"><StackPanel><TextBlock Text="Session actions" Style="{StaticResource SectionTitle}"/><TextBlock Text="Select a session to copy its plain text or export time-coded subtitles." Style="{StaticResource BodySecondary}"/><TextBlock Text="{Binding SelectedSavedSession.Name}" FontSize="20" FontWeight="SemiBold" Margin="0,22,0,4"/><TextBlock Text="{Binding SelectedSavedSession.StartedAtUtc, StringFormat={}{0:F}}" Foreground="{DynamicResource TextSecondaryBrush}"/><StackPanel Orientation="Horizontal" Margin="0,22,0,0"><Button Content="Copy text" Command="{Binding CopySavedSessionCommand}" Margin="0,0,8,0"/><Button Content="Export…" Command="{Binding ExportSavedSessionCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/><Button Content="Delete" Command="{Binding DeleteSavedSessionCommand}" Style="{StaticResource DangerButton}"/></StackPanel></StackPanel></Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- GENERAL -->
+            <TabItem Header="General" AutomationProperties.Name="General page">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                    <StackPanel Margin="34,28,44,34" MaxWidth="840" HorizontalAlignment="Left">
+                        <TextBlock Text="General" Style="{StaticResource PageTitle}"/>
+                        <TextBlock Text="Appearance, lifecycle, privacy, and portable profile settings." Style="{StaticResource BodySecondary}" Margin="0,6,0,22"/>
+                        <Border Style="{StaticResource SurfaceBorder}"><StackPanel>
+                            <TextBlock Text="Appearance" Style="{StaticResource SectionTitle}"/>
+                            <controls:SettingHelpLabel Text="Theme" Description="Changes control-center colors. System follows the Windows app theme; High Contrast uses Windows system colors." Margin="0,10,0,0"/>
+                            <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" Width="240" HorizontalAlignment="Left" AutomationProperties.Name="Application theme"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                <CheckBox Content="Reduce motion" IsChecked="{Binding ReduceMotion}"/>
+                                <controls:SettingInfoButton SettingName="Reduce motion" Description="Disables nonessential status animation and popup fades." Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel></Border>
+                        <Border Style="{StaticResource SurfaceBorder}" Margin="0,12,0,0"><StackPanel>
+                            <TextBlock Text="Startup and tray" Style="{StaticResource SectionTitle}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <CheckBox Content="Start LiveSubtitle with Windows" IsChecked="{Binding StartWithWindows}"/>
+                                <controls:SettingInfoButton SettingName="Start with Windows" Description="Launches LiveSubtitle for your Windows account after sign-in. It does not start listening." Margin="6,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox Content="Closing while listening minimizes to the tray" IsChecked="{Binding MinimizeToTray}"/>
+                                <controls:SettingInfoButton SettingName="Minimize to tray while listening" Description="Keeps captions running in the tray when the control center closes during listening. Exit always stops capture." Margin="6,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="Exit always stops capture and erases unsaved caption text." Style="{StaticResource BodySecondary}" Margin="0,8,0,0"/>
+                        </StackPanel></Border>
+                        <Border Style="{StaticResource SurfaceBorder}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Profiles and local data" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="Versioned JSON includes settings and named profiles, never models or transcripts." Style="{StaticResource BodySecondary}"/>
+                                <controls:SettingHelpLabel Text="Active profile" Description="Switches audio sources, subtitle appearance, recognition, and hotkeys to the selected profile." Margin="0,14,0,0"/>
+                                <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" Width="280" HorizontalAlignment="Left" AutomationProperties.Name="Active named profile" ItemContainerStyle="{StaticResource NameComboBoxItem}">
+                                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <controls:SettingHelpLabel Text="Create a profile from the current settings" Description="Saves a named copy of the current configuration for quick switching later." Margin="0,14,0,0"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="280"/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="New profile name"/>
+                                    <Button Grid.Column="2" Content="Save as new profile" Command="{Binding CreateProfileCommand}"/>
+                                    <Button Grid.Column="4" Content="Delete selected profile" Command="{Binding DeleteProfileCommand}" Style="{StaticResource DangerButton}"/>
+                                </Grid>
+                                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                    <Button Content="Import settings…" Command="{Binding ImportSettingsCommand}" Margin="0,0,8,0"/>
+                                    <Button Content="Export settings…" Command="{Binding ExportSettingsCommand}" Margin="0,0,8,0"/>
+                                    <Button Content="Save settings" Command="{Binding SaveSettingsCommand}" Style="{StaticResource PrimaryButton}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- DIAGNOSTICS -->
+            <TabItem Header="Diagnostics" AutomationProperties.Name="Diagnostics page">
+                <Grid Margin="34,28,34,28">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <StackPanel><TextBlock Text="Diagnostics" Style="{StaticResource PageTitle}"/><TextBlock Text="Local runtime status, recovery details, privacy boundaries, and support folders." Style="{StaticResource BodySecondary}" Margin="0,6,0,0"/></StackPanel>
+                    <Grid Grid.Row="1" Margin="0,22,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource SurfaceBorder}"><StackPanel><TextBlock Text="System" Style="{StaticResource SectionTitle}"/><ItemsControl ItemsSource="{Binding Diagnostics}" Margin="0,8,0,0" Focusable="False" AutomationProperties.Name="System diagnostics"><ItemsControl.ItemTemplate><DataTemplate><Grid Margin="0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Ellipse Width="6" Height="6" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding}" Foreground="{DynamicResource TextSecondaryBrush}"/></Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl><Border Style="{StaticResource Divider}"/><TextBlock Text="Backend check" Style="{StaticResource SectionTitle}"/><TextBlock Text="{Binding BenchmarkResult}" Style="{StaticResource BodySecondary}"/><Button Content="Run backend check" Command="{Binding RunBenchmarkCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/></StackPanel></Border>
+                        <StackPanel Grid.Column="2"><Border Style="{StaticResource SurfaceBorder}"><StackPanel><TextBlock Text="Privacy guarantees" Style="{StaticResource SectionTitle}"/><TextBlock Text="Listening performs no model downloads, telemetry, or cloud requests. PCM exists only in bounded memory. Logs exclude transcript text. History is created only after an explicit save." Style="{StaticResource BodySecondary}" Margin="0,8,0,0"/><TextBlock Text="Protected DRM audio and unusual helper processes may be unavailable. Use whole-computer audio as the safe fallback." Foreground="{DynamicResource WarningBrush}" FontSize="12" LineHeight="18" Margin="0,14,0,0"/></StackPanel></Border><Border Style="{StaticResource SurfaceBorder}" Margin="0,12,0,0"><StackPanel><TextBlock Text="Support folders" Style="{StaticResource SectionTitle}"/><StackPanel Orientation="Horizontal" Margin="0,10,0,0"><Button Content="Open data folder" Command="{Binding OpenDataFolderCommand}" Margin="0,0,8,0"/><Button Content="Open sanitized logs" Command="{Binding OpenLogsFolderCommand}"/></StackPanel></StackPanel></Border></StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
